@@ -55,7 +55,7 @@ class Store(Agent):
         """If a robot is at the store, then transfer raw materials onto it and send it to machine."""
         robot_at_location = self.factory.find_robot_at_position(self.pos)
         if robot_at_location:
-            if robot_at_location.destination is None:
+            if robot_at_location.destination == self.pos:
                 robot_at_location.destination = self.factory.machine.pos
                 robot_at_location.raw_materials += 1
                 self.raw_materials -= 1
@@ -84,8 +84,7 @@ class Machine(Agent):
         * If the machine has raw materials, then manufacture a product.
         """
         self.summon_robot()
-        self.handle_robot_import()
-        self.handle_robot_export()
+        self.handle_robot_at_location()
         self.manufacture_product()
         # Debug.
         print("[MACHINE] raw_materials: {}  products:{}".format(self.raw_materials, self.products))
@@ -99,31 +98,37 @@ class Machine(Agent):
             else:
                 print("WARNING: No aimless robots at the moment, will summon again next step.")
 
-    def handle_robot_import(self):
-        """If a robot shows up with raw materials then transfer them to the machine."""
-        robot_at_location = self.factory.find_robot_at_position(self.pos)
-        if robot_at_location:
-            if robot_at_location.destination is None:
-                if robot_at_location.raw_materials > 0:
-                    self.raw_materials += robot_at_location.raw_materials
-                    robot_at_location.raw_materials = 0
-                else:
-                    # Robot has come for export.
-                    print("[MACHINE] Robot has probably come for Export. Ignoring Import.")
-            else:
-                print("ERROR: Machine-1, this should not happen.")
+    def handle_robot_at_location(self):
+        """If a robot shows up at the machine with raw materials or if the machine has products.
 
-    def handle_robot_export(self):
-        """If a robot shows up and machine has products, then transfer product to packaging."""
+        * If robot has only raw materials, then machine takes raw materials and releases the robot.
+        * If robot has only products, then machine transfers products to robot and sends it to packaging dept.
+        * If robot has raw materials and machine has products, then machine takes raw materials, then transfers to it
+            and then sends it to packaging dept.
+        * If robot does not have raw materials and machine has no products, then it is not an expected situation.
+        """
         robot_at_location = self.factory.find_robot_at_position(self.pos)
         if robot_at_location:
-            if robot_at_location.destination is None:
-                if self.products > 0:
+            if robot_at_location.destination == self.pos:
+                if robot_at_location.raw_materials > 0 and self.products == 0:
+                    self.raw_materials += 1
+                    robot_at_location.raw_materials -= 1
+                    robot_at_location.destination = None
+
+                elif robot_at_location.raw_materials == 0 and self.products > 0:
                     self.products -= 1
                     robot_at_location.products += 1
                     robot_at_location.destination = self.factory.packaging.pos
+
+                elif robot_at_location.raw_materials > 0 and self.products > 0:
+                    self.raw_materials += 1
+                    robot_at_location.raw_materials -= 1
+                    self.products -= 1
+                    robot_at_location.products += 1
+                    robot_at_location.destination = self.factory.packaging.pos
+
                 else:
-                    print("[MACHINE] Robot has probably come for import. Ignoring Export.")
+                    print("ERROR: Machine-1, this should not happen.")
             else:
                 print("ERROR: Machine-2, this should not happen.")
 
@@ -155,11 +160,15 @@ class Packaging(Agent):
         """Transfer the product from the robot into packaging."""
         robot_at_location = self.factory.find_robot_at_position(self.pos)
         if robot_at_location:
-            if robot_at_location.products > 0:
-                self.products += robot_at_location.products
-                robot_at_location.products = 0
+            if robot_at_location.destination == self.pos:
+                if robot_at_location.products > 0:
+                    self.products += robot_at_location.products
+                    robot_at_location.products = 0
+                    robot_at_location.destination = None
+                else:
+                    print("ERROR: Packaging-1, this should not occur.")
             else:
-                print("ERROR: Packaging, this should not occur.")
+                print("ERROR: Packaging-2, this should not occur.")
 
 
 class Robot(Agent):
@@ -191,8 +200,6 @@ class Robot(Agent):
         """Move towards destination."""
         next_pos = self.factory.find_next_position_towards_destination(self.pos, self.destination)
         self.factory.grid.move_agent(self, next_pos)
-        if next_pos == self.destination:
-            self.destination = None
 
     def random_walk(self):
         """Do a random walk from current position, but keep away from the departments."""
@@ -266,10 +273,7 @@ class Factory(Model):
                                             cost=astar.fixed_cost(1))
 
     def find_nearest_aimless_robot(self, pos):
-        """Find the nearest aimless robot to a given position in the factory.
-
-        # IGNORE: Exclude robots that are on that particular position already - Why?
-        """
+        """Find the nearest aimless robot to a given position in the factory."""
         def is_aimless(robot, pos):
             """Check if the robot satisfied aimless condition."""
             if robot.destination is None:
@@ -288,20 +292,26 @@ class Factory(Model):
     def find_robot_at_position(self, pos):
         """Find robot that is at a given location in the factory that is not busy."""
         for robot in self.scheduler.agents:
-            if robot.pos == pos and robot.destination is None:
+            if robot.pos == pos:
                 return robot
         return None
 
     def find_next_position_towards_destination(self, curr_pos, dest_pos):
         """Find the next empty position to move in the direction of the destination."""
         n_steps, path = self.path_finder(curr_pos, dest_pos)  # Handles non-empty locations.
+        # NOTE: We cannot find a valid path to the destination when:
+        #   1) The destination has an another robot located inside it, which also occurs when curr_pos and
+        #       dest_pos are the same.
+        #   2) The path is entirely blocked.
+        #   In these cases we return the next position to be the curr_pos, in order to wait until things
+        #   clear up.
         if n_steps is None or n_steps <= 0:  # No valid path to destination
             next_pos = curr_pos
             print("[MOVE] Warning: No path to destination from {} --> {}".format(curr_pos, dest_pos))
-            # print("[MOVE] n_steps: {}".format(n_steps))
-            # print("[MOVE] path: {}".format(path))
-        else:   # This mean there's a valid path to destination.
-            next_pos = path[1]  # index 0, is the curr_pos
+        # This mean there's a valid path to destination.
+        else:
+            # index 0, is the curr_pos, index 1 is the next position.
+            next_pos = path[1]
         return next_pos
 
     def find_next_position_for_random_walk(self, curr_pos):
@@ -326,7 +336,7 @@ class Factory(Model):
         def heatmap(a):
             cMap = ListedColormap(['grey', 'black', 'green', 'orange', 'red', 'blue'])
             sns.heatmap(a, vmin=0, vmax=6, cmap=cMap, linewidths=1)
-            plt.pause(2)
+            plt.pause(0.3)
             plt.clf()
 
         g = np.zeros((self.grid.height, self.grid.width), dtype=int)
@@ -343,7 +353,7 @@ class Factory(Model):
 
 
 if __name__ == '__main__':
-    factory = Factory(20, 20, 2)
+    factory = Factory(20, 20, 5)
 
     for i in range(2):
         factory.add_order()
