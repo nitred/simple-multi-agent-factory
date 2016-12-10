@@ -342,7 +342,7 @@ class Factory(Model):
         def heatmap(a):
             cMap = ListedColormap(['grey', 'black', 'green', 'orange', 'red', 'blue'])
             sns.heatmap(a, vmin=0, vmax=6, cmap=cMap, linewidths=1)
-            plt.pause(0.3)
+            plt.pause(0.15)
             plt.clf()
 
         g = np.zeros((self.grid.height, self.grid.width), dtype=int)
@@ -361,8 +361,7 @@ class Factory(Model):
 if __name__ == '__main__':
     factory = Factory(20, 20, 5)
 
-    for i in range(2):
-        factory.add_order()
-
     for i in range(100):
+        if np.random.rand() > 0.80:
+            factory.add_order()
         factory.step()
