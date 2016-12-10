@@ -73,6 +73,7 @@ class Machine(Agent):
         self.factory = factory
         self.raw_materials = 0
         self.products = 0
+        self.robots_needed = 0
 
     def step(self):
         """Conduct actions of a machine for one step.
@@ -87,14 +88,17 @@ class Machine(Agent):
         self.handle_robot_at_location()
         self.manufacture_product()
         # Debug.
-        print("[MACHINE] raw_materials: {}  products:{}".format(self.raw_materials, self.products))
+        print("[MACHINE] raw_materials: {}  products:{}  robots_needed: {}".format(self.raw_materials,
+                                                                                   self.products,
+                                                                                   self.robots_needed))
 
     def summon_robot(self):
         """If products are available then find nearest to take the products to packaging."""
-        if self.products > 0:
+        if self.robots_needed > 0:
             nearest_robot = self.factory.find_nearest_aimless_robot(self.pos)
             if nearest_robot:
                 nearest_robot.destination = self.pos
+                self.robots_needed -= 1
             else:
                 print("WARNING: No aimless robots at the moment, will summon again next step.")
 
@@ -138,6 +142,7 @@ class Machine(Agent):
         if self.raw_materials > 0:
             self.raw_materials -= 1
             self.products += 1
+            self.robots_needed += 1
 
 
 class Packaging(Agent):
