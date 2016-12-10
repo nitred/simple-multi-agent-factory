@@ -1,5 +1,5 @@
 # About
-Simple multi agent system that runs a factory. Visualization of grip is provided.
+Simple multi agent system that runs a factory. Visualization of grid is provided.
 
 # Installing
 You can either use the anaconda environment or install the pre-requisites manually.
