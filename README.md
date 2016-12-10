@@ -1,3 +1,6 @@
+# About
+Simple multi agent system that runs a factory. Visualization of grip is provided.
+
 # Installing
 You can either use the anaconda environment or install the pre-requisites manually.
 ### Using Anaconda Environment
@@ -24,3 +27,8 @@ You most likely will require Python3 and have to use pip3. Anaconda is recommend
 * `git clone git@github.com:nitred/simple-multi-agent-factory.git`
 * `cd simple-multi-agent-factory`
 * `python factory_model.py`
+
+
+# Known Issues
+* The robot agents do move when another agent is located at the departments agents (i.e. the Store Agent, Fitting/Manufacturing Agent etc).
+* The robot agents pass directly through departments agents.
