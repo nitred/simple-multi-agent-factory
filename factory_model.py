@@ -128,7 +128,8 @@ class Machine(Agent):
                     robot_at_location.destination = self.factory.packaging.pos
 
                 else:
-                    print("ERROR: Machine-1, this should not happen.")
+                    robot_at_location.destination = None
+                    print("ERROR: Machine-1, this should not happen. Robot destination reset.")
             else:
                 print("ERROR: Machine-2, this should not happen.")
 
@@ -155,6 +156,8 @@ class Packaging(Agent):
         If a robot is at the machine, it transfers the product into packaging.
         """
         self.handle_robot_at_location()
+        # Debug.
+        print("[PACKAGING] products: {}".format(self.products))
 
     def handle_robot_at_location(self):
         """Transfer the product from the robot into packaging."""
@@ -204,9 +207,7 @@ class Robot(Agent):
     def random_walk(self):
         """Do a random walk from current position, but keep away from the departments."""
         next_pos = self.factory.find_next_position_for_random_walk(self.pos)
-        print("[ROBOT] Before Loiter curr_pos: {}  next_pos: {}".format(self.pos, next_pos))
         self.factory.grid.move_agent(self, next_pos)
-        print("[ROBOT] After Loiter curr_pos: {}".format(self.pos))
 
 
 class Factory(Model):
