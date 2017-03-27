@@ -6,13 +6,13 @@
     from machine to packagin.
 """
 import numpy as np
+import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
-import seaborn as sns
-from pypaths import astar
-from mesa import Model, Agent
-from mesa.time import RandomActivation
+from mesa import Agent, Model
 from mesa.space import SingleGrid
+from mesa.time import RandomActivation
+from pypaths import astar
 
 
 class Store(Agent):
@@ -361,7 +361,9 @@ class Factory(Model):
 if __name__ == '__main__':
     factory = Factory(20, 20, 5)
 
-    for i in range(100):
-        if np.random.rand() > 0.80:
-            factory.add_order()
+    products = 5
+    for i in range(products):
+        factory.add_order()
+
+    while factory.packaging.products < products:
         factory.step()
