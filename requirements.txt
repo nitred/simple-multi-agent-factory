@@ -1,0 +1,7 @@
+future
+mesa
+pypaths
+matplotlib
+seaborn
+numpy
+PyQt5
